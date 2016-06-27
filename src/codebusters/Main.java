@@ -6,6 +6,26 @@ import java.math.*;
  * Send your busters out into the fog to trap ghosts and bring them home!
  **/
 class Player {
+	
+	/*
+	 * on suppose que les id des ghosts et busters 
+	 * vont de 0 à n 
+	 * peut-être faudra-t-il le vérifier
+	 * 
+	 */
+	
+	/*
+	 * TODO
+	 * instancier toutes les classes au début //fait
+	 * 	 et donc ajouter un boolean visible modifié à chaque tour //fait
+	 * 
+	 *  ajouter une variable no de tour 
+	 *  	qui permet notemment de savoir buster stuned(10 tours) et si stun possible (20 tours)
+	 * 
+	 * ajouter la fonciton stun
+	 * 
+	 * enregistre position présumées des ghost non capturés
+	 */
 
 	static Ghost[] ghosts;
 	static Buster busters[];
@@ -30,7 +50,13 @@ class Player {
         myTeamId = in.nextInt(); // if this is 0, your base is on the top left of the map, if it is one, on the bottom right
         
 
-        
+        for (int i = 0; i < bustersPerPlayer; i++) {
+			busters[i]=new Buster(i);
+			opponentBusters[i]=new OpponentBuster(i);
+		}
+        for (int i = 0; i < ghostCount; i++) {
+			ghosts[i]=new Ghost(i);
+		}
         
 
         // game loop
@@ -53,13 +79,13 @@ class Player {
                 int type=myTeamId-entityType;
                 if (type == 0) {//my busters
                
-					busters[bustersIndex]=new Buster(entityId, x, y, state);
+					busters[entityId].update(x, y, state,value);
 					bustersIndex++;
 				} else if (type == myTeamId+1) {//ghosts    (myTeamId+1 is not a constant => not suitable for switch/case)
-					ghosts[ghostIndex]=new Ghost(entityId, x, y);
+					ghosts[entityId].update(x, y,value);
 					ghostIndex++;
 				} else { //=-1 || =1   && !ghost => opponent ghost
-					opponentBusters[opponentBustersIndex]=new OpponentBuster(entityId, x, y, state);
+					opponentBusters[entityId].update(x, y, state,value);
 					opponentBustersIndex++;
 				}
 				//System.err.println(bustersIndex);System.err.println(opponentBustersIndex);System.err.println(ghostIndex);
@@ -79,27 +105,27 @@ class Player {
 
 
 class Buster {//My busters
-	int id;
-	int x;
-	int y;	
-	int state;
-	String answer;
+	private int id;
+	private int x;
+	private int y;	
+	private int state;
+	private int value;
+	private String answer;
 	
-	public Buster(int id, int x, int y,int state) {
-		super();
-		this.id = id;
+	public Buster(int id) {
+		this.id=id;
+	}	
+	
+	public void update(int x, int y,int state,int value) {//change to update
 		this.x = x;
 		this.y = y;
 		this.state = state;
+		this.value=value;
 		this.answer="";
 	}
 
 
-	public Buster() {
 
-		
-	}
-	
 	public String action(){
 		if(!this.unload()){
 			if(!this.ghostAround()){
@@ -134,18 +160,21 @@ class Buster {//My busters
 	
 	private boolean ghostAround(){//if a ghost around, bust
 	System.err.println(Player.ghostIndex);
-		for (int i = 0; i < Player.ghostIndex; i++) {
-			int GX=Player.ghosts[i].getX();
-			int GY=Player.ghosts[i].getY();
-			int BX=this.x;
-			int BY=this.y;
-			int a=(GX-BX)*(GX-BX)+(GY-BY)*(GY-BY);
-			System.err.println(a);
-			if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<1760*1760){// && (GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)>900
-				answer="BUST "+Player.ghosts[i].getID();
-				return true;
-			}
+		for (int i = 0; i < Player.ghostCount; i++) {
+			if(Player.ghosts[i].getVisible()){
+			
+				int GX=Player.ghosts[i].getX();
+				int GY=Player.ghosts[i].getY();
+				int BX=this.x;
+				int BY=this.y;
+				int a=(GX-BX)*(GX-BX)+(GY-BY)*(GY-BY);
+				System.err.println(a);
+				if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<1760*1760){// && (GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)>900
+					answer="BUST "+Player.ghosts[i].getID();
+					return true;
+				}
 				
+			}	
 		}
 		return false;
 	}
@@ -154,17 +183,18 @@ class Buster {//My busters
 		int closestGhost = 0; 
 		int closestGhostID=-1;
 		
-		for (int i = 0; i < Player.ghostIndex; i++) {
-			int GX=Player.ghosts[i].getX();
-			int GY=Player.ghosts[i].getY();
-			int BX=this.x;
-			int BY=this.y;
-			
-			if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)>closestGhost){
-				closestGhost=(GX-BX)*(GX-BX)+(GY-BY)*(GY-BY);
-				closestGhostID=i;
-			}
+		for (int i = 0; i < Player.ghostCount; i++) {
+			if(Player.ghosts[i].getVisible()){
+				int GX=Player.ghosts[i].getX();
+				int GY=Player.ghosts[i].getY();
+				int BX=this.x;
+				int BY=this.y;
 				
+				if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)>closestGhost){
+					closestGhost=(GX-BX)*(GX-BX)+(GY-BY)*(GY-BY);
+					closestGhostID=i;
+				}
+			}	
 		}
 		//System.err.println(closestGhostID);
 		//System.err.println(Player.ghosts[closestGhostID].getX());
@@ -202,21 +232,35 @@ class Buster {//My busters
 	
 }
 
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————new class———————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+
 class Ghost {
 	private int id;
 	private int x;
 	private int y;
-
-	public Ghost(int id, int x, int y) {
-		super();
-		this.id = id;
+	private int value;
+	private boolean visible;
+	
+	public Ghost(int id) {
+		this.id=id;
+	}
+	
+	public void update(int x, int y,int value) {// TODO change to update
+		this.visible = true;
 		this.x = x;
 		this.y = y;
+		this.value = value;
 	}
 
-
-	public Ghost() {
-
+//———————————————————
+//——getters setters——
+//———————————————————
+	public void setVisible(boolean set){
+		this.visible=set;
 	}
 	
 	public int getX() {
@@ -227,34 +271,50 @@ class Ghost {
 		return y;
 	}
 
-
 	public int getID() {
-		// TODO Auto-generated method stub
 		return id;
 	}	
+	
+	public boolean getVisible() {
+		return visible;
+	}
+	
 }
 
-
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————new class———————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
 
 class OpponentBuster {//My busters
-	int id;
-	int x;
-	int y;	
-	int state;
+	private int id;
+	private int x;
+	private int y;	
+	private int state;
+	private int value;
+	private boolean visible;
 	
-	public OpponentBuster(int id, int x, int y,int state) {
-		super();
-		this.id = id;
+	
+	public void update(int x, int y,int state,int value) {//TODO Change to update
 		this.x = x;
 		this.y = y;
 		this.state = state;
+		this.value=value;
+		this.visible=true;
+	}
+
+	public OpponentBuster(int id) {
+		this.id=id;
+	}
+
+//———————————————————
+//——getters setters——
+//———————————————————
+	public void setVisible(boolean set){
+		this.visible=set;
 	}
 	
-	
-	
-	
-	
-
 	public int getId() {
 		return id;
 	}
