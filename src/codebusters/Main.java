@@ -79,6 +79,7 @@ class Player {
     		}
             for (int i = 0; i < ghostCount; i++) {
     			ghosts[i].setVisible(false);
+    			ghosts[i].setTracked(false);
     		}
             
             int entities = in.nextInt(); // the number of busters and ghosts visible to you
@@ -97,18 +98,31 @@ class Player {
                 
                 int type=myTeamId-entityType;
                 if (type == 0) {//my busters
-					busters[entityId-bustersPerPlayer*myTeamId].update(x, y, state,value);
+					busters[entityId-bustersPerPlayer*myTeamId].update(entityId,x, y, state,value);
 					bustersIndex++;
 				} else if (type == myTeamId+1) {//ghosts    (myTeamId+1 is not a constant => not suitable for switch/case)
 					ghosts[entityId].update(x, y,value);
 					ghostIndex++;
 				} else { //=-1 || =1   && !ghost => opponent ghost 
-					opponentBusters[entityId-bustersPerPlayer*((myTeamId+1)%2)].update(x, y, state,value);
+					opponentBusters[entityId-bustersPerPlayer*((myTeamId+1)%2)].update(entityId,x, y, state,value);
 					opponentBustersIndex++;
 				}
 				//System.err.println(bustersIndex);System.err.println(opponentBustersIndex);System.err.println(ghostIndex);
                 
             }
+            
+            for (int i = 0; i < bustersPerPlayer; i++) {//permet de détecter un ghost perdu par un buster stuned
+            	if(busters[i].getState()==1){
+            		for (int u = 0; u < bustersPerPlayer; u++) {//permet d'empécher d'aller chercher un ghost déjà blusted
+            			if(busters[u].getAimGhost()==busters[i].getvalue()){
+            				busters[u].setAim(false);
+            			}
+            		}
+            		ghosts[busters[i].getvalue()].setRelevant(false);//permet de détecter un ghost perdu par un buster stuned(reste true)
+            		ghosts[busters[i].getvalue()].setTracked(true);//permet d'empêcher que deux blusters aillent chercher le même ghost
+            	}
+            }
+            
             for (int i = 0; i < bustersPerPlayer; i++) {
                   
 				//	System.err.println(this.ghostIndex);      
@@ -144,16 +158,15 @@ class Buster {//My busters
 		this.aimY=30000;
 	}	
 	
-	public void update(int x, int y,int state,int value) {//change to update
+	public void update(int id ,int x, int y,int state,int value) {//change to update
+		this.id=id;
 		this.x = x;
 		this.y = y;
 		this.state = state;
 		this.value=value;
 		this.answer="";
 		
-		int BX=this.x;
-		int BY=this.y;
-		if((aimX-x)*(aimX-x)+(aimY-y)*(aimY-y)<1000*1000){//1760*1760
+		if((aimX-x)*(aimX-x)+(aimY-y)*(aimY-y)<1000*1000 ){//1760*1760
 			this.aim=false;
 			Player.ghosts[aimGhost].setRelevant(false);
 		}
@@ -207,6 +220,7 @@ class Buster {//My busters
 		if(this.canBust()){
 			for (int i = 0; i < Player.bustersPerPlayer; i++) {
 				if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted()){
+					int b=1/0;
 					int OX=Player.opponentBusters[i].getX();
 					int OY=Player.opponentBusters[i].getY();
 					int BX=this.x;
@@ -217,9 +231,10 @@ class Buster {//My busters
 						Player.opponentBusters[i].setStunedTurn(Player.nbturn);
 						System.err.println("stun");
 						return true;
-					}else{
+					}/*else{
 						answer="MOVE "+Player.opponentBusters[i].getX()+" "+Player.opponentBusters[i].getY();
-					}
+						return true;
+					}*/
 					
 				}
 			}			
@@ -254,7 +269,7 @@ class Buster {//My busters
 		int closestGhostID=-1;
 		
 		for (int i = 0; i < Player.ghostCount; i++) {
-			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0){//
+			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0 && !Player.ghosts[i].getTracked()){//
 				int GX=Player.ghosts[i].getX();
 				int GY=Player.ghosts[i].getY();
 				int BX=this.x;
@@ -270,6 +285,7 @@ class Buster {//My busters
 		//System.err.println(Player.ghosts[closestGhostID].getX());
 		if (closestGhostID==-1){return false;}
 		answer="MOVE "+Player.ghosts[closestGhostID].getX()+" "+Player.ghosts[closestGhostID].getY();
+		Player.ghosts[closestGhostID].setTracked(true);
 		aim=true;
 		aimX=Player.ghosts[closestGhostID].getX();
 		aimY=Player.ghosts[closestGhostID].getY();
@@ -279,7 +295,7 @@ class Buster {//My busters
 	}
 	
 	
-	private void travel() {//peut être fait de façon beaucoups plus efficace.
+	private void travel() {
 		/*
 		 * les x a checker vont de 2000 à 14000 soit 7 étapes 1 à 7
 		 * les y a checker vont de 2000 à 6000  soit 3 étapes 1 à 3
@@ -322,7 +338,24 @@ class Buster {//My busters
 		}
 		return false;
 	}
-
+//———————————————————
+//——getters setters——
+//———————————————————		
+	public void setAim(boolean set) {
+		aim=set;
+	}
+	
+	public int getState(){
+		return state;
+	}
+	
+	public int getvalue() {
+		return value;
+	}
+	
+	public int getAimGhost(){
+		return aimGhost;
+	}
 	
 }
 
@@ -338,6 +371,7 @@ class Ghost {
 	private int y;
 	private int value;
 	private boolean visible;
+	private boolean tracked;//déjà poursuivi par un buster
 	
 	private boolean relevantPosition;
 	
@@ -352,12 +386,18 @@ class Ghost {
 		this.x = x;
 		this.y = y;
 		this.value = value;
+		relevantPosition=true;
 	}
+	
 	
 
 //———————————————————
 //——getters setters——
 //———————————————————
+	public void setTracked(boolean set){
+		tracked=set;
+	}
+	
 	public void setRelevant(boolean set) {
 		this.relevantPosition=set;
 	}
@@ -386,6 +426,10 @@ class Ghost {
 		return visible;
 	}
 	
+	public boolean getTracked() {
+		return tracked;
+	}
+	
 }
 
 //————————————————————————————————————————————————————————————————————————————
@@ -408,7 +452,8 @@ class OpponentBuster {//My busters
 		this.stunedTurn=-30;
 	}
 	
-	public void update(int x, int y,int state,int value) {
+	public void update(int id,int x, int y,int state,int value) {
+		this.id=id;
 		this.x = x;
 		this.y = y;
 		this.state = state;
@@ -416,8 +461,8 @@ class OpponentBuster {//My busters
 		this.visible=true;
 	}
 	
-	public boolean canBeBusted() {
-		if(state==2){
+	public boolean canBeBusted() {//carry a ghost
+		if(state==1){
 			return true;
 		}
 		return false;
