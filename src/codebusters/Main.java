@@ -8,28 +8,11 @@ import java.math.*;
 class Player {
 	
 	/*
-	 * on suppose que les id des ghosts et busters 
-	 * vont de 0 à n 
-	 * peut-être faudra-t-il le vérifier
-	 * 
-	 */
-	
-	/*
 	 * TODO
-	 * instancier toutes les classes au début //fait
-	 * 	 et donc ajouter un boolean visible modifié à chaque tour //fait
 	 * 
-	 *  ajouter une variable no de tour 
-	 *  	qui permet notemment de savoir buster stuned(10 tours) et si stun possible (20 tours)
+	 * peut-être qu'il faut compter un tour sur 2 pour stun. 
 	 * 
-	 * ajouter la fonciton stun
-	 * 
-	 * peut-être qu'il faut compter un tour sur 2 pour stun. non nécessaire
-	 * 
-	 * prendre en compet state = 2 pour stun
 	 * ===idées d'amélioration===
-	 * enregistre position présumée des ghost non capturés
-	 * 
 	 * améliorer la fonction travel
 	 * 
 	 * prendre en compte les cas d'égalité
@@ -71,6 +54,8 @@ class Player {
         
         nbturn = 0;
         // game loop
+        
+        
         while (true) {
         	nbturn++;
         	
@@ -80,6 +65,9 @@ class Player {
             for (int i = 0; i < ghostCount; i++) {
     			ghosts[i].setVisible(false);
     			ghosts[i].setTracked(false);
+    			ghosts[i].setBlustersBlusting(0);
+    			ghosts[i].setOpponentBlustersBlusting(0);
+    			
     		}
             
             int entities = in.nextInt(); // the number of busters and ghosts visible to you
@@ -100,6 +88,7 @@ class Player {
                 if (type == 0) {//my busters
 					busters[entityId-bustersPerPlayer*myTeamId].update(entityId,x, y, state,value);
 					bustersIndex++;
+					System.err.println(value);
 				} else if (type == myTeamId+1) {//ghosts    (myTeamId+1 is not a constant => not suitable for switch/case)
 					ghosts[entityId].update(x, y,value);
 					ghostIndex++;
@@ -182,7 +171,7 @@ class Buster {//My busters
 				if(!this.ghostAround()){		//if he can bust a ghost
 					if(!aim){
 						if(!this.closestGhost()){	//if he can go to catch a ghost
-						    travel();				//if these is no ghost visible
+						    travel();				//if these is no ghost visible && may stun
 						    
 						    }						
 					}
@@ -219,13 +208,12 @@ class Buster {//My busters
 	private boolean stun() {//stun an opponent if close enough
 		if(this.canBust()){
 			for (int i = 0; i < Player.bustersPerPlayer; i++) {
-				if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted()){
-					int b=1/0;
+				if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted() ){//visible and carry a ghost
 					int OX=Player.opponentBusters[i].getX();
 					int OY=Player.opponentBusters[i].getY();
 					int BX=this.x;
 					int BY=this.y;
-					if((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY)<1760*1760){
+					if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<1760*1760){
 						answer="STUN "+Player.opponentBusters[i].getId();
 						stunTurn=Player.nbturn;
 						Player.opponentBusters[i].setStunedTurn(Player.nbturn);
@@ -269,7 +257,7 @@ class Buster {//My busters
 		int closestGhostID=-1;
 		
 		for (int i = 0; i < Player.ghostCount; i++) {
-			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0 && !Player.ghosts[i].getTracked()){//
+			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0){// && !Player.ghosts[i].getTracked()
 				int GX=Player.ghosts[i].getX();
 				int GY=Player.ghosts[i].getY();
 				int BX=this.x;
@@ -300,6 +288,26 @@ class Buster {//My busters
 		 * les x a checker vont de 2000 à 14000 soit 7 étapes 1 à 7
 		 * les y a checker vont de 2000 à 6000  soit 3 étapes 1 à 3
 		 */
+		
+		if(this.canBust()){
+			for (int i = 0; i < Player.bustersPerPlayer; i++) {
+				if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted2() ){//visible and carry a ghost
+					int OX=Player.opponentBusters[i].getX();
+					int OY=Player.opponentBusters[i].getY();
+					int BX=this.x;
+					int BY=this.y;
+					if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<1760*1760){
+						answer="STUN "+Player.opponentBusters[i].getId();
+						stunTurn=Player.nbturn;
+						Player.opponentBusters[i].setStunedTurn(Player.nbturn);
+						System.err.println("stun");
+						return;
+					}
+				}
+			}			
+		}
+		
+		
 			int boardTravel=Player.boardTravelOdd;
 			if(id%2==0){
 				boardTravel=Player.boardTravelEven;
@@ -310,12 +318,14 @@ class Buster {//My busters
 		//do{
 
 			xTravel=boardTravel%8;
-			yTravel=(boardTravel/7)%4;
+			yTravel=(boardTravel/8)%4;
 			xTravel+=1;
 			yTravel+=1;
 			if(id%2==0){yTravel=4-yTravel;}
 			xTravel*=2000;
 			yTravel*=2000;
+			xTravel-=1000;
+			yTravel-=1000;
 			boardTravel++;
 			//System.err.println((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y));
 		//}while((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y)<1000*1000);
@@ -330,6 +340,10 @@ class Buster {//My busters
 			
 		System.err.println("travel");
 		answer="MOVE "+xTravel+" "+yTravel;
+		
+		if(id%3==0){
+			answer="MOVE "+(500+15000*((Player.myTeamId+1)%2))+" "+(500+8000*((Player.myTeamId+1)%2));
+		}
 	}
 	
 	private boolean canBust(){
@@ -372,6 +386,10 @@ class Ghost {
 	private int value;
 	private boolean visible;
 	private boolean tracked;//déjà poursuivi par un buster
+
+	private int blustersBlusting;
+	private int opponentBlustersBlusting;
+	private boolean blusted;//is beeing blusted by an even number of busters and opponentbusters 
 	
 	private boolean relevantPosition;
 	
@@ -394,6 +412,22 @@ class Ghost {
 //———————————————————
 //——getters setters——
 //———————————————————
+	public void setBlustersBlusting(int set){
+		blustersBlusting=set;
+	}
+	
+	public void setOpponentBlustersBlusting(int set){
+		opponentBlustersBlusting=set;
+	}
+	
+	public int getBlustersBlusting(int set){
+		return blustersBlusting;
+	}
+	
+	public int getOpponentBlustersBlusting(int set){
+		return opponentBlustersBlusting;
+	}
+	
 	public void setTracked(boolean set){
 		tracked=set;
 	}
@@ -452,6 +486,8 @@ class OpponentBuster {//My busters
 		this.stunedTurn=-30;
 	}
 	
+
+
 	public void update(int id,int x, int y,int state,int value) {
 		this.id=id;
 		this.x = x;
@@ -462,12 +498,17 @@ class OpponentBuster {//My busters
 	}
 	
 	public boolean canBeBusted() {//carry a ghost
-		if(state==1){
+		if(state==1 ){
 			return true;
 		}
 		return false;
 	}
-
+	public boolean canBeBusted2() {
+		if(state==2 ){
+			return false;
+		}
+		return true;
+	}
 //———————————————————
 //——getters setters——
 //———————————————————
