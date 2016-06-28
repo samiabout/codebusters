@@ -97,14 +97,13 @@ class Player {
                 
                 int type=myTeamId-entityType;
                 if (type == 0) {//my busters
-               
-					busters[entityId].update(x, y, state,value);
+					busters[entityId-bustersPerPlayer*myTeamId].update(x, y, state,value);
 					bustersIndex++;
 				} else if (type == myTeamId+1) {//ghosts    (myTeamId+1 is not a constant => not suitable for switch/case)
 					ghosts[entityId].update(x, y,value);
 					ghostIndex++;
-				} else { //=-1 || =1   && !ghost => opponent ghost //TODO il y a un bug ici à corriger
-					opponentBusters[entityId-bustersPerPlayer].update(x, y, state,value);
+				} else { //=-1 || =1   && !ghost => opponent ghost 
+					opponentBusters[entityId-bustersPerPlayer*((myTeamId+1)%2)].update(x, y, state,value);
 					opponentBustersIndex++;
 				}
 				//System.err.println(bustersIndex);System.err.println(opponentBustersIndex);System.err.println(ghostIndex);
@@ -131,10 +130,18 @@ class Buster {//My busters
 	private int value;
 	private int stunTurn;//last turn he has used stun()
 	private String answer;
+	boolean aim;
+	int aimX;
+	int aimY;
+	int aimGhost;
 	
 	public Buster(int id) {
 		this.id=id;
 		this.stunTurn=-30;
+		
+		this.aim=false;
+		this.aimX=30000;
+		this.aimY=30000;
 	}	
 	
 	public void update(int x, int y,int state,int value) {//change to update
@@ -143,18 +150,30 @@ class Buster {//My busters
 		this.state = state;
 		this.value=value;
 		this.answer="";
+		
+		int BX=this.x;
+		int BY=this.y;
+		if((aimX-x)*(aimX-x)+(aimY-y)*(aimY-y)<1000*1000){//1760*1760
+			this.aim=false;
+			Player.ghosts[aimGhost].setRelevant(false);
+		}
+		
 	}
 
 
 
 	public String action(){
+		answer="MOVE "+aimX+" "+aimY;
 		if(!this.unload()){						//if he has a ghost
 			if(!this.stun()){					//if he can stun an opponent
 				if(!this.ghostAround()){		//if he can bust a ghost
-					if(!this.closestGhost()){	//if he can go to catch a ghost
-					    travel();				//if these is no ghost visible
-					    
-					    }
+					if(!aim){
+						if(!this.closestGhost()){	//if he can go to catch a ghost
+						    travel();				//if these is no ghost visible
+						    
+						    }						
+					}
+
 				}	
 			}
 		}
@@ -193,12 +212,15 @@ class Buster {//My busters
 					int BX=this.x;
 					int BY=this.y;
 					if((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY)<1760*1760){
-						answer="STUN "+i;
+						answer="STUN "+Player.opponentBusters[i].getId();
 						stunTurn=Player.nbturn;
 						Player.opponentBusters[i].setStunedTurn(Player.nbturn);
 						System.err.println("stun");
 						return true;
+					}else{
+						answer="MOVE "+Player.opponentBusters[i].getX()+" "+Player.opponentBusters[i].getY();
 					}
+					
 				}
 			}			
 		}
@@ -217,6 +239,7 @@ class Buster {//My busters
 				int BY=this.y;
 				if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<1760*1760){// && (GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)>900
 					answer="BUST "+Player.ghosts[i].getID();
+					Player.ghosts[i].setRelevant(false);
 					System.err.println("bust");
 					return true;
 				}
@@ -231,7 +254,7 @@ class Buster {//My busters
 		int closestGhostID=-1;
 		
 		for (int i = 0; i < Player.ghostCount; i++) {
-			if(Player.ghosts[i].getVisible()){
+			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0){//
 				int GX=Player.ghosts[i].getX();
 				int GY=Player.ghosts[i].getY();
 				int BX=this.x;
@@ -247,6 +270,10 @@ class Buster {//My busters
 		//System.err.println(Player.ghosts[closestGhostID].getX());
 		if (closestGhostID==-1){return false;}
 		answer="MOVE "+Player.ghosts[closestGhostID].getX()+" "+Player.ghosts[closestGhostID].getY();
+		aim=true;
+		aimX=Player.ghosts[closestGhostID].getX();
+		aimY=Player.ghosts[closestGhostID].getY();
+		aimGhost=closestGhostID;
 		System.err.println("go");
 		return true;
 	}
@@ -264,7 +291,7 @@ class Buster {//My busters
 		
 		int xTravel;//=Player.boardTravel%7;
 		int yTravel;//=Player.boardTravel/7;
-		do{
+		//do{
 
 			xTravel=boardTravel%8;
 			yTravel=(boardTravel/7)%4;
@@ -273,15 +300,18 @@ class Buster {//My busters
 			if(id%2==0){yTravel=4-yTravel;}
 			xTravel*=2000;
 			yTravel*=2000;
-
-			System.err.println((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y));
-		}while((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y)<2000*2000);
-			if(id%2==0){
-				Player.boardTravelEven++;
+			boardTravel++;
+			//System.err.println((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y));
+		//}while((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y)<1000*1000);
+			if((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y)<2000*2000){
+				if(id%2==0){
+					Player.boardTravelEven++;
+				}
+				if(id%2!=0){
+					Player.boardTravelOdd++;
+				}
 			}
-			if(id%2!=0){
-				Player.boardTravelOdd++;
-			}
+			
 		System.err.println("travel");
 		answer="MOVE "+xTravel+" "+yTravel;
 	}
@@ -309,6 +339,8 @@ class Ghost {
 	private int value;
 	private boolean visible;
 	
+	private boolean relevantPosition;
+	
 	public Ghost(int id) {
 		this.id=id;
 	}
@@ -326,8 +358,16 @@ class Ghost {
 //———————————————————
 //——getters setters——
 //———————————————————
+	public void setRelevant(boolean set) {
+		this.relevantPosition=set;
+	}
+	
 	public void setVisible(boolean set){
 		this.visible=set;
+	}
+	
+	public boolean getRelevantPosition() {
+		return relevantPosition;
 	}
 	
 	public int getX() {
