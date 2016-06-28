@@ -119,7 +119,9 @@ class Player {
     			if((float)ghosts[i].getBlustersBlusting()==(float)((float)ghosts[i].getValue())/2){
     				ghosts[i].setBusted(true);
     			}
-    			
+    			if(ghosts[i].getState()>30 && nbturn<290){//ne pas prendre les ghost qui ont trop d'endurance en début de partie
+    				ghosts[i].setToEarly(true);
+    			}
     		}
             
             for (int i = 0; i < bustersPerPlayer; i++) {
@@ -180,25 +182,43 @@ class Buster {//My busters
 
 	public String action(){
 		answer="MOVE "+aimX+" "+aimY;
-		if(!this.unload()){						//if he has a ghost
-			if(!this.stun()){					//if he can stun an opponent
-				if(!this.ghostAround()){		//if he can bust a ghost
-					//if(!aim)
-					{
-						if(!this.closestGhost()){	//if he can go to catch a ghost
-						    travel();				//if these is no ghost visible && may stun
-						    
-						    }						
-					}
-
-				}	
-			}
+		if(!dodge){									//esquive if carry a ghost
+			if(!this.unload()){						//if he has a ghost
+				if(!this.stun()){					//if he can stun an opponent
+					if(!this.ghostAround()){		//if he can bust a ghost
+						//if(!aim)
+						{
+							if(!this.closestGhost()){	//if he can go to catch a ghost
+							    travel();				//if these is no ghost visible && may stun
+							    
+							    }						
+						}
+	
+					}	
+				}
+			}			
 		}
+
 		return answer;
 	}
 
 
-
+	private boolean dodge(){
+		for (int i = 0; i < Player.bustersPerPlayer; i++) {
+			if(Player.opponentBusters[i].getVisible() ){//visible and carry a ghost
+					int OX=Player.opponentBusters[i].getX();
+					int OY=Player.opponentBusters[i].getY();
+					int BX=this.x;
+					int BY=this.y;
+					if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<2200*2200){
+						answer="MOVE "+(2*BX-OX)+" "+(2*BY-OY);
+						System.err.println("dodge");
+						return true;
+					}
+				}
+			}
+		return false;
+	}
 
 	private boolean unload() {//if a ghost is loaded go to base or unload
 		if (state==1){
@@ -249,14 +269,14 @@ class Buster {//My busters
 	
 	private boolean ghostAround(){//if a ghost around, bust
 		for (int i = 0; i < Player.ghostCount; i++) {
-			if(Player.ghosts[i].getVisible()){
+			if(Player.ghosts[i].getVisible() && !Player.ghosts[i].getToEarly()){
 				
 				if(Player.ghosts[i].getBusted()){//autant de busters dans chaque équipe
 					for (int u = 0; u < Player.bustersPerPlayer; u++) {
 						if(Player.opponentBusters[u].getVisible() ){//visible and carry a ghost
 							if(Player.opponentBusters[u].getValue()==value){
 								boolean firstStun=true;//check if another bluster hasn't stuned
-									for (int a = 0; a < id; a++) {
+									for (int a = 0; a < id-(Player.myTeamId*Player.bustersPerPlayer); a++) {
 										if(Player.busters[a].getvalue()==value){
 											firstStun=false;
 										}
@@ -304,7 +324,7 @@ class Buster {//My busters
 		int closestGhostBlustedID = -1;
 		
 		for (int i = 0; i < Player.ghostCount; i++) {
-			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0){// && !Player.ghosts[i].getTracked()
+			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0 && !Player.ghosts[i].getToEarly()){// && !Player.ghosts[i].getTracked()
 				int GX=Player.ghosts[i].getX();
 				int GY=Player.ghosts[i].getY();
 				int BX=this.x;
@@ -393,9 +413,9 @@ class Buster {//My busters
 		System.err.println("travel");
 		answer="MOVE "+xTravel+" "+yTravel;
 		
-		/*if(id%3==0){
-			answer="MOVE "+(1000+14000*((Player.myTeamId+1)%2))+" "+(1000+7000*((Player.myTeamId+1)%2));
-		}*/
+		if(id%3==0 && Player.bustersPerPlayer>2){
+			answer="MOVE "+(1500+13000*((Player.myTeamId+1)%2))+" "+(1500+6000*((Player.myTeamId+1)%2));
+		}
 	}
 	
 	private boolean canBust(){
@@ -443,6 +463,7 @@ class Ghost {
 	private int blustersBlusting;
 	private int opponentBlustersBlusting;
 	private boolean busted;//is beeing blusted by an even number of busters and opponentbusters 
+	private boolean toEarly;
 	
 	private boolean relevantPosition;
 	
@@ -458,6 +479,7 @@ class Ghost {
 		this.y = y;
 		this.value = value;
 		this.state=state;
+		this.toEarly=false;
 		relevantPosition=true;
 	}
 	
@@ -466,6 +488,14 @@ class Ghost {
 //———————————————————
 //——getters setters——
 //———————————————————
+	public boolean getToEarly(){
+		return toEarly;
+	}
+	
+	public void setToEarly(boolean set){
+		toEarly=set;
+	}
+	
 	public int getValue(){
 		return value;
 	}
