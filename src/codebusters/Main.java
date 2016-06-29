@@ -10,15 +10,14 @@ class Player {
 	/*
 	 * TODO
 	 * 
-	 * peut-être qu'il faut compter un tour sur 2 pour stun. 
 	 * 
 	 * ===idées d'amélioration===
 	 * 
-	 * les ghost n'on pas la même endurence!!!!!!!!!!!!!!!!!!!
+	 * stun un opponentbuster qui bust un ghost 
 	 * 
-	 * améliorer la fonction travel
+	 * team work eventualy
 	 * 
-	 * prendre en compte les cas d'égalité
+	 * 
 	 */
 
 	static Ghost[] ghosts;
@@ -36,6 +35,8 @@ class Player {
     static int opponentBustersIndex;
     
     static TravelTheWorld theWorld=new TravelTheWorld();
+    static boolean worldChecked=false;
+    
     
     static int nbturn;
 	
@@ -120,10 +121,10 @@ class Player {
             	}
             }
             for (int i = 0; i < ghostCount; i++) {//savoir s'il y autant de busters que d'opponent busters sur le même ghost
-    			if((float)ghosts[i].getBlustersBlusting()==(float)((float)ghosts[i].getValue())/2){
+    			if((float)ghosts[i].getBlustersBlusting()==(float)((float)ghosts[i].getValue())/2 && ghosts[i].getBlustersBlusting()>1){
     				ghosts[i].setBusted(true);
     			}
-    			if(ghosts[i].getState()>22 && nbturn*2<300){//ne pas prendre les ghost qui ont trop d'endurance en début de partie
+    			if(ghosts[i].getState()>22 && nbturn*2<300 && !worldChecked){//ne pas prendre les ghost qui ont trop d'endurance en début de partie
     				ghosts[i].setToEarly(true);
     			}
     		}
@@ -230,7 +231,6 @@ class Buster {//My busters
 
 	private boolean unload() {//if a ghost is loaded go to base or unload //stun 
 		if (state==1){
-
 			if(Player.myTeamId==0){
 				if(x*x+y*y>1600*1600){
 					answer="MOVE 0 0";
@@ -362,8 +362,7 @@ class Buster {//My busters
 		int closestGhost = 0; 
 		int closestGhostID=-1;
 		
-		int closestGhostBlusted = 0;//permet de capturer un ghost qui n'est pas le plus proche mais que les adversaires tantent de prendre
-		int closestGhostBlustedID = -1;
+		boolean closestGhostBlusted = false;//permet de capturer un ghost qui n'est pas le plus proche mais que les adversaires tantent de prendre même si on a déjà un aim
 		
 		for (int i = 0; i < Player.ghostCount; i++) {
 			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0 && !Player.ghosts[i].getToEarly() && !Player.ghosts[i].getTracked()){// 
@@ -375,6 +374,7 @@ class Buster {//My busters
 				int bonus=0;
 				
 				if(Player.ghosts[i].getBusted()){
+					closestGhostBlusted=true;
 					bonus = 5000*5000+2000*2000;
 				}
 				if(((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY))-(Player.ghosts[i].getState()*500)+bonus>closestGhost){
@@ -386,6 +386,9 @@ class Buster {//My busters
 		//System.err.println(closestGhostID);
 		//System.err.println(Player.ghosts[closestGhostID].getX());
 		if (closestGhostID==-1){return false;}
+		if(aim && !closestGhostBlusted){
+			return true;
+		}
 		answer="MOVE "+Player.ghosts[closestGhostID].getX()+" "+Player.ghosts[closestGhostID].getY();
 		
 		if(Player.ghosts[closestGhostID].getState()<5 && Player.ghosts[closestGhostID].getValue()<2){	//s'il a peu d'endurance, un seul buster s'en charge
@@ -406,7 +409,7 @@ class Buster {//My busters
 		 * les y a checker vont de 2000 à 6000  soit 3 étapes 1 à 3
 		 */
 		
-		if(this.canBust() && id%3!=0){
+		if(this.canBust() && id%3<2){
 			for (int i = 0; i < Player.bustersPerPlayer; i++) {
 				if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted2() ){//visible 
 					int OX=Player.opponentBusters[i].getX();
@@ -435,7 +438,7 @@ class Buster {//My busters
 		//do{
 
 			xTravel=boardTravel%8;
-			yTravel=(boardTravel/8)%4;
+			yTravel=(boardTravel/8)%3;
 			xTravel+=1;
 			yTravel+=1;
 
@@ -483,7 +486,8 @@ class Buster {//My busters
 		}	
 		
 		
-		if(id%3==2 && Player.bustersPerPlayer>2){
+		if((id%3==2||id%3==3) && Player.bustersPerPlayer>2){
+			System.err.println(id+" go guard");
 			answer="MOVE "+(1500+13000*((Player.myTeamId+1)%2))+" "+(1500+6000*((Player.myTeamId+1)%2));
 		}
 	}
@@ -551,6 +555,8 @@ class Ghost {
 		this.id=id;
 	}
 	
+
+
 
 
 	public void update(int x, int y,int value,int state) {
@@ -762,11 +768,13 @@ class TravelTheWorld {//My busters
 			oddTraveled  &= world[i].getTraveledOdd();
 		}
 		if(evenTraveled){
+			Player.worldChecked=true;
 			for (int i = 0; i < world.length; i++) {
 				world[i].setTraveledEven(false);
 			}
 		}
 		if(oddTraveled){
+			Player.worldChecked=true;
 			for (int i = 0; i < world.length; i++) {
 				world[i].setTraveledOdd(false);
 			}
@@ -821,7 +829,7 @@ class WorldArea {//My busters
 			this.y=2100+(step-20)*800;
 		}if(step>=26 && step<=46){
 			this.x=16000-(step-26)*800;
-			this.y=6800;
+			this.y=6900;
 		}
 		
 		
