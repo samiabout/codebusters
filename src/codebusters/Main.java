@@ -1,4 +1,7 @@
 import java.util.*;
+
+import sun.net.www.content.text.plain;
+
 import java.io.*;
 import java.math.*;
 
@@ -114,12 +117,11 @@ class Player {
             		ghosts[busters[i].getvalue()].setTracked(true);//permet d'empêcher que deux blusters aillent chercher le même ghost
             	}
             }
-            
             for (int i = 0; i < ghostCount; i++) {//savoir s'il y autant de busters que d'opponent busters sur le même ghost
     			if((float)ghosts[i].getBlustersBlusting()==(float)((float)ghosts[i].getValue())/2){
     				ghosts[i].setBusted(true);
     			}
-    			if(ghosts[i].getState()>30 && nbturn<290){//ne pas prendre les ghost qui ont trop d'endurance en début de partie
+    			if(ghosts[i].getState()>22 && nbturn*2<300){//ne pas prendre les ghost qui ont trop d'endurance en début de partie
     				ghosts[i].setToEarly(true);
     			}
     		}
@@ -182,40 +184,44 @@ class Buster {//My busters
 
 	public String action(){
 		answer="MOVE "+aimX+" "+aimY;
-		if(!dodge){									//esquive if carry a ghost
+		//if(!dodge()){									//esquive if carry a ghost
 			if(!this.unload()){						//if he has a ghost
 				if(!this.stun()){					//if he can stun an opponent
 					if(!this.ghostAround()){		//if he can bust a ghost
-						//if(!aim)
-						{
-							if(!this.closestGhost()){	//if he can go to catch a ghost
-							    travel();				//if these is no ghost visible && may stun
-							    
-							    }						
+						//if(aim  && !helpBuster())//if there or even nb of busters of each team on same ghost
+						{			
+							//if(!aim)
+							{
+								if(!this.closestGhost()){	//if he can go to catch a ghost
+								    travel();				//if these is no ghost visible && may stun
+								    
+								    }						
+							}
 						}
-	
 					}	
 				}
 			}			
-		}
+		//}
 
 		return answer;
 	}
 
 
 	private boolean dodge(){
-		for (int i = 0; i < Player.bustersPerPlayer; i++) {
-			if(Player.opponentBusters[i].getVisible() ){//visible and carry a ghost
-					int OX=Player.opponentBusters[i].getX();
-					int OY=Player.opponentBusters[i].getY();
-					int BX=this.x;
-					int BY=this.y;
-					if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<2200*2200){
-						answer="MOVE "+(2*BX-OX)+" "+(2*BY-OY);
-						System.err.println("dodge");
-						return true;
+		if(state == 1){
+			for (int i = 0; i < Player.bustersPerPlayer; i++) {
+				if(Player.opponentBusters[i].getVisible() ){//visible and carry a ghost
+						int OX=Player.opponentBusters[i].getX();
+						int OY=Player.opponentBusters[i].getY();
+						int BX=this.x;
+						int BY=this.y;
+						if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<1800*1800){
+							answer="MOVE "+(2*BX-OX)+" "+(2*BY-OY);
+							System.err.println("dodge");
+							return true;
+						}
 					}
-				}
+				}			
 			}
 		return false;
 	}
@@ -315,6 +321,35 @@ class Buster {//My busters
 		}
 		return false;
 	}
+	
+	
+	public boolean helpBuster(){//en construction
+		int closestGhostBlusted = 0;//permet de capturer un ghost qui n'est pas le plus proche mais que les adversaires tantent de prendre
+		int closestGhostBlustedID = -1;
+		for (int i = 0; i < Player.ghostCount; i++) {
+			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0 && !Player.ghosts[i].getToEarly() && Player.ghosts[i].getBusted()){// && !Player.ghosts[i].getTracked()
+				int GX=Player.ghosts[i].getX();
+				int GY=Player.ghosts[i].getY();
+				int BX=this.x;
+				int BY=this.y;
+				
+				int bonus=0;
+				
+				
+				/*
+				 * comparer la décision avec aimX et aimY	
+				 */
+				
+				if(((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY))-(Player.ghosts[i].getState()*500)+bonus>closestGhostBlusted){
+					closestGhostBlusted=(GX-BX)*(GX-BX)+(GY-BY)*(GY-BY);
+					closestGhostBlustedID=i;
+				}
+			}	
+		}
+		return false;
+	}
+	
+	
 
 	private boolean closestGhost(){//go to closest ghost
 		int closestGhost = 0; 
@@ -324,7 +359,7 @@ class Buster {//My busters
 		int closestGhostBlustedID = -1;
 		
 		for (int i = 0; i < Player.ghostCount; i++) {
-			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0 && !Player.ghosts[i].getToEarly()){// && !Player.ghosts[i].getTracked()
+			if(Player.ghosts[i].getRelevantPosition()&&Player.ghosts[i].getX()!=0 && !Player.ghosts[i].getToEarly() && !Player.ghosts[i].getTracked()){// 
 				int GX=Player.ghosts[i].getX();
 				int GY=Player.ghosts[i].getY();
 				int BX=this.x;
@@ -345,12 +380,15 @@ class Buster {//My busters
 		//System.err.println(Player.ghosts[closestGhostID].getX());
 		if (closestGhostID==-1){return false;}
 		answer="MOVE "+Player.ghosts[closestGhostID].getX()+" "+Player.ghosts[closestGhostID].getY();
-		Player.ghosts[closestGhostID].setTracked(true);
+		
+		if(Player.ghosts[closestGhostID].getState()<5 && Player.ghosts[closestGhostID].getValue()<2){	//s'il a peu d'endurance, un seul buster s'en charge
+			Player.ghosts[closestGhostID].setTracked(true);
+		}
 		aim=true;
 		aimX=Player.ghosts[closestGhostID].getX();
 		aimY=Player.ghosts[closestGhostID].getY();
 		aimGhost=closestGhostID;
-		System.err.println("go");
+		System.err.println("go "+nbTurnsBeforeCatsh(x, y, closestGhostID)+" "+closestGhostID);
 		return true;
 	}
 	
@@ -393,36 +431,51 @@ class Buster {//My busters
 			yTravel=(boardTravel/8)%4;
 			xTravel+=1;
 			yTravel+=1;
-			if(id%2==0){yTravel=4-yTravel;}
+
 			xTravel*=2000;
 			yTravel*=2000;
 			xTravel-=1000;
 			yTravel-=1000;
 			boardTravel++;
+			
+			if(id%3==1){
+				yTravel=4-yTravel;
+				xTravel=
+			}			
 			//System.err.println((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y));
 		//}while((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y)<1000*1000);
 			if((xTravel-x)*(xTravel-x)+(yTravel-y)*(yTravel-y)<2000*2000){
-				if(id%2==0){
+				if(id%3==0){
 					Player.boardTravelEven++;
 				}
-				if(id%2!=0){
+				if(id%3==1){
 					Player.boardTravelOdd++;
 				}
 			}
 			
-		System.err.println("travel");
+		System.err.println("travel "+id);
 		answer="MOVE "+xTravel+" "+yTravel;
 		
-		if(id%3==0 && Player.bustersPerPlayer>2){
+		if(id%3==2 && Player.bustersPerPlayer>2){
 			answer="MOVE "+(1500+13000*((Player.myTeamId+1)%2))+" "+(1500+6000*((Player.myTeamId+1)%2));
 		}
 	}
 	
 	private boolean canBust(){
-		if (Player.nbturn>stunTurn+20){
+		if (Player.nbturn>stunTurn+10){
 			return true;
 		}
 		return false;
+	}
+	
+	private int nbTurnsBeforeCatsh(int BX,int BY, int ghostID){
+		int GX=Player.ghosts[ghostID].getX();
+		int GY=Player.ghosts[ghostID].getY();
+		int distance=(int) Math.sqrt((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY));
+		int endurance = Player.ghosts[ghostID].getState();
+		
+		return (int) ( ((distance-1760)/800)+endurance );
+		
 	}
 //———————————————————
 //——getters setters——
