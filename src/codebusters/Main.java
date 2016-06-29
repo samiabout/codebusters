@@ -17,6 +17,9 @@ class Player {
 	 * 
 	 * team work eventualy
 	 * 
+	 * checker si ca vaut le coup de se déplacer pour aider un buster
+	 * 
+	 * dans ghotaround vérifier s'il n'y a pas déjà un allié qui bust pour l'aider.
 	 * 
 	 */
 
@@ -61,7 +64,7 @@ class Player {
         
         nbturn = 0;
         // game loop
-        theWorld.describe();
+        //theWorld.describe();
         
         while (true) {
         	nbturn++;
@@ -304,7 +307,7 @@ class Buster {//My busters
 										return true;
 										}else{
 											answer="MOVE "+Player.ghosts[i].getX()+" "+Player.ghosts[i].getY();
-											System.err.println("stun");
+											System.err.println("move to stun");
 											return true;													
 										}
 								}
@@ -466,24 +469,44 @@ class Buster {//My busters
 		System.err.println("travel "+id);
 		answer="MOVE "+xTravel+" "+yTravel;
 		*/
-		if(id%3==0){
-			if(x==Player.theWorld.nextStepEven().getX() && y==Player.theWorld.nextStepEven().getY()){
-				Player.theWorld.nextStepEven().setTraveledEven(true);
-				System.err.println("fait");
-				Player.theWorld.describe();
+		if(Player.myTeamId==0){
+			if(id%3==0){
+				if(x==Player.theWorld.nextStepEven().getX() && y==Player.theWorld.nextStepEven().getY()){
+					Player.theWorld.nextStepEven().setTraveledEven(true);
+				}
+				System.err.println("travel "+id+" "+Player.theWorld.nextStepEven().getX()+" "+Player.theWorld.nextStepEven().getY());
+				answer="MOVE "+Player.theWorld.nextStepEven().getX()+" "+Player.theWorld.nextStepEven().getY();
 			}
-			System.err.println("travel "+id+" "+Player.theWorld.nextStepEven().getX()+" "+Player.theWorld.nextStepEven().getY());
-			answer="MOVE "+Player.theWorld.nextStepEven().getX()+" "+Player.theWorld.nextStepEven().getY();
+			
+			if(id%3==1){
+				if(x==Player.theWorld.nextStepOdd().getX() && y==9000-Player.theWorld.nextStepOdd().getY()){
+					Player.theWorld.nextStepOdd().setTraveledOdd(true);
+				}	
+				System.err.println("travel "+id+" "+Player.theWorld.nextStepOdd().getX()+" "+(9000-Player.theWorld.nextStepOdd().getY()));
+				answer="MOVE "+Player.theWorld.nextStepOdd().getX()+" "+(9000-Player.theWorld.nextStepOdd().getY());
+			}	
 		}
 		
-		if(id%3==1){
-			if(16000-x==Player.theWorld.nextStepOdd().getX() && 9000-y==Player.theWorld.nextStepOdd().getY()){
-				Player.theWorld.nextStepOdd().setTraveledOdd(true);
-				System.err.println("fait");Player.theWorld.describe();
+		if(Player.myTeamId==1){//on inverse les valeurs
+			if(id%3==0){
+				if(16000-x==Player.theWorld.nextStepEven().getX() && y==9000-Player.theWorld.nextStepEven().getY()){
+					Player.theWorld.nextStepEven().setTraveledEven(true);
+				}
+				System.err.println("travel "+id+" "+(16000-Player.theWorld.nextStepEven().getX())+" "+(9000-Player.theWorld.nextStepEven().getY()));
+				answer="MOVE "+(16000-Player.theWorld.nextStepEven().getX())+" "+(9000-Player.theWorld.nextStepEven().getY());
+			}
+			
+			if(id%3==1 || (Player.bustersPerPlayer==2 && id%3==2)){
+				if(16000-x==Player.theWorld.nextStepOdd().getX() && y==Player.theWorld.nextStepOdd().getY()){
+					Player.theWorld.nextStepOdd().setTraveledOdd(true);
+				}	
+				System.err.println("travel "+id+" "+(16000-Player.theWorld.nextStepOdd().getX())+" "+Player.theWorld.nextStepOdd().getY());
+				answer="MOVE "+(16000-Player.theWorld.nextStepOdd().getX())+" "+(Player.theWorld.nextStepOdd().getY());
 			}	
-			System.err.println("travel "+id+" "+(16000-Player.theWorld.nextStepOdd().getX())+" "+(9000-Player.theWorld.nextStepOdd().getY()));
-			answer="MOVE "+(16000-Player.theWorld.nextStepOdd().getX())+" "+(9000-Player.theWorld.nextStepOdd().getY());
-		}	
+		}
+		//Player.theWorld.describe();
+		
+	
 		
 		
 		if((id%3==2||id%3==3) && Player.bustersPerPlayer>2){
@@ -755,7 +778,7 @@ class TravelTheWorld {//My busters
 	}
 	
 	public void describe() {
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < world.length; i++) {
 			System.err.println(i+" "+world[i].getX()+" "+world[i].getY()+" "+world[i].getTraveledEven()+" "+world[i].getTraveledOdd());
 		}
 	}
@@ -832,9 +855,14 @@ class WorldArea {//My busters
 			this.y=6900;
 		}
 		
-		
 		this.traveledEven=false;
-		this.traveledOdd=false;
+		this.traveledOdd=false;	
+		
+		if(this.step==0 ||this.step==1 || this.step==26 || this.step==27){
+			this.traveledEven=true;
+			this.traveledOdd=true;			
+		}
+
 	}
 
 
