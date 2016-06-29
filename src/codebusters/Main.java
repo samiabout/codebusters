@@ -1,7 +1,4 @@
 import java.util.*;
-
-import sun.net.www.content.text.plain;
-
 import java.io.*;
 import java.math.*;
 
@@ -38,6 +35,8 @@ class Player {
     static int bustersIndex;
     static int opponentBustersIndex;
     
+    static TravelTheWorld theWorld=new TravelTheWorld();
+    
     static int nbturn;
 	
     public static void main(String args[]) {
@@ -49,7 +48,8 @@ class Player {
         ghosts = new Ghost[ghostCount];
         myTeamId = in.nextInt(); // if this is 0, your base is on the top left of the map, if it is one, on the bottom right
         
-
+        
+        
         for (int i = 0; i < bustersPerPlayer; i++) {
 			busters[i]=new Buster(i);
 			opponentBusters[i]=new OpponentBuster(i);
@@ -60,10 +60,12 @@ class Player {
         
         nbturn = 0;
         // game loop
-        
+        theWorld.describe();
         
         while (true) {
         	nbturn++;
+        	
+        	theWorld.setWorld();
         	
             for (int i = 0; i < bustersPerPlayer; i++) {//set visible to false for all before correction
     			opponentBusters[i].setVisible(false);
@@ -226,8 +228,9 @@ class Buster {//My busters
 		return false;
 	}
 
-	private boolean unload() {//if a ghost is loaded go to base or unload
+	private boolean unload() {//if a ghost is loaded go to base or unload //stun 
 		if (state==1){
+
 			if(Player.myTeamId==0){
 				if(x*x+y*y>1600*1600){
 					answer="MOVE 0 0";
@@ -299,7 +302,11 @@ class Buster {//My busters
 										Player.opponentBusters[u].setStunedTurn(Player.nbturn);
 										System.err.println("stun");
 										return true;
-										}									
+										}else{
+											answer="MOVE "+Player.ghosts[i].getX()+" "+Player.ghosts[i].getY();
+											System.err.println("stun");
+											return true;													
+										}
 								}
 							}
 						}
@@ -399,9 +406,9 @@ class Buster {//My busters
 		 * les y a checker vont de 2000 à 6000  soit 3 étapes 1 à 3
 		 */
 		
-		if(this.canBust()){
+		if(this.canBust() && id%3!=0){
 			for (int i = 0; i < Player.bustersPerPlayer; i++) {
-				if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted2() ){//visible and carry a ghost
+				if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted2() ){//visible 
 					int OX=Player.opponentBusters[i].getX();
 					int OY=Player.opponentBusters[i].getY();
 					int BX=this.x;
@@ -417,7 +424,7 @@ class Buster {//My busters
 			}			
 		}
 		
-		
+		/*
 			int boardTravel=Player.boardTravelOdd;
 			if(id%2==0){
 				boardTravel=Player.boardTravelEven;
@@ -455,6 +462,26 @@ class Buster {//My busters
 			
 		System.err.println("travel "+id);
 		answer="MOVE "+xTravel+" "+yTravel;
+		*/
+		if(id%3==0){
+			if(x==Player.theWorld.nextStepEven().getX() && y==Player.theWorld.nextStepEven().getY()){
+				Player.theWorld.nextStepEven().setTraveledEven(true);
+				System.err.println("fait");
+				Player.theWorld.describe();
+			}
+			System.err.println("travel "+id+" "+Player.theWorld.nextStepEven().getX()+" "+Player.theWorld.nextStepEven().getY());
+			answer="MOVE "+Player.theWorld.nextStepEven().getX()+" "+Player.theWorld.nextStepEven().getY();
+		}
+		
+		if(id%3==1){
+			if(16000-x==Player.theWorld.nextStepOdd().getX() && 9000-y==Player.theWorld.nextStepOdd().getY()){
+				Player.theWorld.nextStepOdd().setTraveledOdd(true);
+				System.err.println("fait");Player.theWorld.describe();
+			}	
+			System.err.println("travel "+id+" "+(16000-Player.theWorld.nextStepOdd().getX())+" "+(9000-Player.theWorld.nextStepOdd().getY()));
+			answer="MOVE "+(16000-Player.theWorld.nextStepOdd().getX())+" "+(9000-Player.theWorld.nextStepOdd().getY());
+		}	
+		
 		
 		if(id%3==2 && Player.bustersPerPlayer>2){
 			answer="MOVE "+(1500+13000*((Player.myTeamId+1)%2))+" "+(1500+6000*((Player.myTeamId+1)%2));
@@ -703,3 +730,133 @@ class OpponentBuster {//My busters
 	}
 	
 }
+
+
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————new class———————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+
+class TravelTheWorld {//My busters
+	
+	private WorldArea[] world=new WorldArea[47];
+	
+	public TravelTheWorld() {
+		for (int i = 0; i < world.length; i++) {
+			world[i]=new WorldArea(i);
+		}
+	}
+	
+	public void describe() {
+		for (int i = 0; i < 5; i++) {
+			System.err.println(i+" "+world[i].getX()+" "+world[i].getY()+" "+world[i].getTraveledEven()+" "+world[i].getTraveledOdd());
+		}
+	}
+
+	public void setWorld(){//vérifie si tout le monde a été parcouru.
+		boolean evenTraveled=true;
+		boolean oddTraveled=true;
+		for (int i = 0; i < world.length; i++) {
+			evenTraveled &= world[i].getTraveledEven();
+			oddTraveled  &= world[i].getTraveledOdd();
+		}
+		if(evenTraveled){
+			for (int i = 0; i < world.length; i++) {
+				world[i].setTraveledEven(false);
+			}
+		}
+		if(oddTraveled){
+			for (int i = 0; i < world.length; i++) {
+				world[i].setTraveledOdd(false);
+			}
+		}
+	}
+	
+	public  WorldArea nextStepEven(){
+		for (int i = 0; i < world.length; i++) {
+			if(!world[i].getTraveledEven()){
+				return world[i];
+			}
+		}
+		return world[46];
+	}
+	public WorldArea nextStepOdd() {
+		for (int i = 0; i < world.length; i++) {
+			if(!world[i].getTraveledOdd()){
+				return world[i];
+			}
+		}
+		return world[46];
+	}
+	
+	public void AreaEvenReached(WorldArea worldArea){
+		worldArea.setTraveledEven(true);
+	}
+	public void AreaOddReached(WorldArea worldArea){
+		worldArea.setTraveledOdd(true);
+	}
+}
+
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————new class———————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+
+class WorldArea {//My busters
+	int step;
+	int x=0;
+	int y=0;
+	boolean traveledEven;
+	boolean traveledOdd;
+	
+	public WorldArea(int step) {
+		this.step=step;
+		if(step<=20){
+			this.y=2100;
+			this.x=step*800;
+		}if (step>20 && step<=25) {
+			this.x=16000;
+			this.y=2100+(step-20)*800;
+		}if(step>=26 && step<=46){
+			this.x=16000-(step-26)*800;
+			this.y=6800;
+		}
+		
+		
+		this.traveledEven=false;
+		this.traveledOdd=false;
+	}
+
+
+
+//———————————————————
+//——getters setters——
+//———————————————————
+	public boolean getTraveledEven() {
+		return traveledEven;
+	}
+
+	public boolean getTraveledOdd() {
+		return traveledOdd;
+	}
+	
+	public void setTraveledOdd(boolean set) {
+		traveledOdd=set;
+	}
+
+	public void setTraveledEven(boolean set) {
+		traveledEven=set;
+	}
+	
+	public int getX(){
+		return x;
+	}
+	
+	public int getY(){
+		return y;
+	}
+	
+}
+
