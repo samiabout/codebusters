@@ -13,9 +13,13 @@ class Player {
 	 * le mot d'ordre : être plus agressif et arrêter de se faire voler ses ghost
 	 * ===idées d'amélioration===
 	 * 
+	 * vérifier si déjà buster avant de le faire
+	 * 
+	 * buster un bustur qui prend un ghost
+	 * 
 	 * stun un opponentbuster qui bust un ghost s'ils a moins de 10 de vie  en cas de duel =>priorité 3//corrigé
 	 * 
-	 * assomer un buster qui est sur un ghost pour le prendre à sa place
+	 * assomer un buster qui est sur un ghost pour le prendre à sa place //fait non vérifié
 	 * 
 	 * team work eventualy
 	 * 
@@ -211,7 +215,7 @@ class Buster {//My busters
 
 	public String action(){
 		answer="MOVE "+aimX+" "+aimY;
-		//if(!dodge()){									//esquive if carry a ghost
+		if(!dodge()){									//esquive if carry a ghost
 			if(!this.unload()){						//if he has a ghost
 				if(!this.stun()){					//if he can stun an opponent
 					if(!this.ghostAround()){		//if he can bust a ghost
@@ -228,7 +232,7 @@ class Buster {//My busters
 					}	
 				}
 			}			
-		//}
+		}
 			
 		return answer;
 	}
@@ -236,25 +240,49 @@ class Buster {//My busters
 
 	private boolean dodge(){
 		if(state == 1){
-			for (int i = 0; i < Player.bustersPerPlayer; i++) {
-				if(Player.opponentBusters[i].getVisible() ){//visible and carry a ghost
-						int OX=Player.opponentBusters[i].getX();
-						int OY=Player.opponentBusters[i].getY();
-						int BX=this.x;
-						int BY=this.y;
-						if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<1800*1800){
-							answer="MOVE "+(2*BX-OX)+" "+(2*BY-OY);
-							System.err.println("dodge");
-							return true;
+			if((x-Player.myTeamId*16000)*(x-Player.myTeamId*16000)+(y-Player.myTeamId*9000)*(y-Player.myTeamId*9000)<4960*4960 || Player.nbturn>140){
+				for (int i = 0; i < Player.bustersPerPlayer; i++) {
+					if(Player.opponentBusters[i].getVisible() ){//visible and carry a ghost
+							int OX=Player.opponentBusters[i].getX();
+							int OY=Player.opponentBusters[i].getY();
+							int BX=this.x;
+							int BY=this.y;
+							if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<2200*2200){
+								answer="MOVE "+(2*BX-OX-800)+" "+(2*BY-OY-800);
+								System.err.println("dodge");
+								return true;
+							}
 						}
-					}
-				}			
+					}					
+				}
+		
 			}
 		return false;
 	}
 
 	private boolean unload() {//if a ghost is loaded go to base or unload //stun 
 		if (state==1){
+			if(this.canBust()){
+				for (int i = 0; i < Player.bustersPerPlayer; i++) {
+					if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted2() ){//visible and carry a ghost || protéger le buste que je fait
+						int OX=Player.opponentBusters[i].getX();
+						int OY=Player.opponentBusters[i].getY();
+						int BX=this.x;
+						int BY=this.y;
+						if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<1760*1760){
+							answer="STUN "+Player.opponentBusters[i].getId();
+							stunTurn=Player.nbturn;
+							Player.opponentBusters[i].setStunedTurn(Player.nbturn);
+							System.err.println("stun");
+							return true;
+						}/*else{
+							answer="MOVE "+Player.opponentBusters[i].getX()+" "+Player.opponentBusters[i].getY();
+							return true;
+						}*/
+						
+					}
+				}			
+			}
 			if(Player.myTeamId==0){
 				if(x*x+y*y>1600*1600){
 					answer="MOVE 0 0";
@@ -276,7 +304,7 @@ class Buster {//My busters
 	private boolean stun() {//stun an opponent if close enough
 		if(this.canBust()){
 			for (int i = 0; i < Player.bustersPerPlayer; i++) {
-				if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted() ){//visible and carry a ghost
+				if(Player.opponentBusters[i].getVisible() && Player.opponentBusters[i].canBeBusted(i) ){//visible and carry a ghost || protéger le buste que je fait
 					int OX=Player.opponentBusters[i].getX();
 					int OY=Player.opponentBusters[i].getY();
 					int BX=this.x;
@@ -310,7 +338,7 @@ class Buster {//My busters
 							if(Player.opponentBusters[u].getValue()==value){
 								boolean firstStun=true;//check if another bluster hasn't stuned
 									for (int a = 0; a < id-(Player.myTeamId*Player.bustersPerPlayer); a++) {
-										if(Player.busters[a].getvalue()==value){
+										if(Player.busters[a].getvalue()==value){//TODO ca ne marche pas
 											firstStun=false;
 										}
 									}
@@ -320,17 +348,20 @@ class Buster {//My busters
 									int OY=Player.opponentBusters[u].getY();
 									int BX=this.x;
 									int BY=this.y;
-									if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<1760*1760){
-										answer="STUN "+Player.opponentBusters[u].getId();
-										stunTurn=Player.nbturn;
-										Player.opponentBusters[u].setStunedTurn(Player.nbturn);
-										System.err.println("stun");
-										return true;
-										}else{
-											answer="MOVE "+Player.ghosts[i].getX()+" "+Player.ghosts[i].getY();
-											System.err.println("move to stun");
-											return true;													
-										}
+									if(canBust() && Player.opponentBusters[u].canBeBusted2()){
+										if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<1760*1760){
+											answer="STUN "+Player.opponentBusters[u].getId();
+											stunTurn=Player.nbturn;
+											Player.opponentBusters[u].setStunedTurn(Player.nbturn);
+											System.err.println("stun");
+											return true;
+											}else{
+												answer="MOVE "+Player.ghosts[i].getX()+" "+Player.ghosts[i].getY();
+												System.err.println("move to stun");
+												return true;													
+											}										
+									}
+
 								}
 							}
 						}
@@ -343,7 +374,21 @@ class Buster {//My busters
 						int GY=Player.ghosts[i].getY();
 						int BX=this.x;
 						int BY=this.y;
-						if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<1760*1760){// && (GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)>900
+						if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<1760*1760){
+							if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<900*900 ){// si trop proche&& state!=3
+								if (Player.nbturn==Player.ghosts[i].getTurnTooClose()+1){
+									if(GX==BX && GY==BY){
+										BX+=800;
+										BY+=800;
+									}
+								answer="Move "+(2*BX-GX)+" "+(2*BY-GY);
+								System.err.println("move to bust");
+								nextStep=false;
+								return true;									
+								}else{
+									Player.ghosts[i].setTurnTooClose(Player.nbturn);
+								}
+							}
 							answer="BUST "+Player.ghosts[i].getID();
 							Player.ghosts[i].setRelevant(false);
 							System.err.println("bust");
@@ -357,7 +402,21 @@ class Buster {//My busters
 				int GY=Player.ghosts[i].getY();
 				int BX=this.x;
 				int BY=this.y;
-				if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<1760*1760){// && (GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)>900
+				if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<1760*1760){
+					if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<900*900 ){// si trop proche&& state!=3
+						if (Player.nbturn==Player.ghosts[i].getTurnTooClose()+1){
+							if(GX==BX && GY==BY){
+								BX++;
+								BY++;
+							}
+						answer="Move "+(2*BX-GX)+" "+(2*BY-GY);
+						System.err.println("move to bust");
+						nextStep=false;
+						return true;									
+						}else{
+							Player.ghosts[i].setTurnTooClose(Player.nbturn);
+						}
+					}
 					answer="BUST "+Player.ghosts[i].getID();
 					Player.ghosts[i].setRelevant(false);
 					System.err.println("bust");
@@ -369,8 +428,9 @@ class Buster {//My busters
 		}
 		if(nextStep){
 			answer="MOVE "+nextX+" "+nextY;
-			return true;
 			nextStep=false;
+			return true;
+			
 		}
 		return false;
 	}
@@ -437,7 +497,7 @@ class Buster {//My busters
 		}
 		answer="MOVE "+Player.ghosts[closestGhostID].getX()+" "+Player.ghosts[closestGhostID].getY();
 		
-		if(Player.ghosts[closestGhostID].getState()<5 && Player.ghosts[closestGhostID].getValue()<2){	//s'il a peu d'endurance, un seul buster s'en charge
+		if(Player.ghosts[closestGhostID].getState()<5 && Player.ghosts[closestGhostID].getValue()<2 && Player.nbturn<75){	//s'il a peu d'endurance, un seul buster s'en charge que en début de partie (150 premiers tours)
 			Player.ghosts[closestGhostID].setTracked(true);
 		}
 		aim=true;
@@ -621,6 +681,8 @@ class Ghost {
 	private int state;
 	private boolean visible;
 	private boolean tracked;//déjà poursuivi par un buster
+	
+	private int turnTooClose=-10;//no du tour ou il est trop proche=>dans certains cas,s'il est encerclé il en bouge pas donc si ça arrive 2 tours d'affilé, on bouge.
 
 	private int blustersBlusting;
 	private int opponentBlustersBlusting;
@@ -652,6 +714,14 @@ class Ghost {
 //———————————————————
 //——getters setters——
 //———————————————————
+	public int getTurnTooClose(){
+		return turnTooClose;
+	}
+	
+	public void setTurnTooClose(int set){
+		turnTooClose=set;
+	}
+	
 	public boolean getToEarly(){
 		return toEarly;
 	}
@@ -765,8 +835,20 @@ class OpponentBuster {//My busters
 		}
 	}
 	
-	public boolean canBeBusted() {//carry a ghost
+	public boolean canBeBusted(int i) {//carry a ghost//visible and carry a ghost 
 		if(state==1 ){
+			return true;
+		}
+		if (state==3 && (  Player.ghosts[value].getState()/((Player.ghosts[value].getValue()/2) +1) ) <10){// protéger le buste que je fait
+			return true;
+		}
+		if(Player.opponentBusters[i].getState()==3){
+			if(Player.ghosts[Player.opponentBusters[i].getValue()].getVisible()){//si trop d'endurance on ne stun pas
+				if (Player.ghosts[i].getState()>10) {
+					return false;
+				}
+				return true;
+			}
 			return true;
 		}
 		return false;
