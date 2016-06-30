@@ -10,16 +10,27 @@ class Player {
 	/*
 	 * TODO
 	 * 
-	 * 
+	 * le mot d'ordre : être plus agressif et arrêter de se faire voler ses ghost
 	 * ===idées d'amélioration===
 	 * 
-	 * stun un opponentbuster qui bust un ghost 
+	 * stun un opponentbuster qui bust un ghost s'ils a moins de 10 de vie  en cas de duel =>priorité 3//corrigé
+	 * 
+	 * assomer un buster qui est sur un ghost pour le prendre à sa place
 	 * 
 	 * team work eventualy
 	 * 
 	 * checker si ca vaut le coup de se déplacer pour aider un buster
 	 * 
-	 * dans ghotaround vérifier s'il n'y a pas déjà un allié qui bust pour l'aider.
+	 * dans ghotaround vérifier s'il n'y a pas déjà un allié qui bust pour l'aider.=>priorité 2 // fait //non vérifié
+	 * 
+	 * vérifier la zone de guarde =>priorité 1 //±fait
+	 * 
+	 * a partir du tour 200 ajouter une variable nb garde dans la zone de dépos 
+	 * 		-se balader par 2
+	 * 		-laisser un buster dans  la zone
+	 * 		-ne pas revenir dans la zone de dépot et esquiver les adversaires
+	 * 
+	 * 
 	 * 
 	 */
 
@@ -131,7 +142,7 @@ class Player {
     				ghosts[i].setToEarly(true);
     			}
     		}
-            
+            //long start = System.nanoTime();
             for (int i = 0; i < bustersPerPlayer; i++) {
                   
 				//	System.err.println(this.ghostIndex);      
@@ -140,6 +151,7 @@ class Player {
 
                  System.out.println(busters[i].action()); // MOVE x y | BUST id | RELEASE
             }
+           // System.err.println("time "+(long)(System.nanoTime()-start));
         }
     }
 }
@@ -153,10 +165,15 @@ class Buster {//My busters
 	private int value;
 	private int stunTurn;//last turn he has used stun()
 	private String answer;
+	
 	boolean aim;
 	int aimX;
 	int aimY;
 	int aimGhost;
+	
+	private boolean nextStep;
+	private int nextX;
+	private int nextY;
 	
 	public Buster(int id) {
 		this.id=id;
@@ -165,6 +182,10 @@ class Buster {//My busters
 		this.aim=false;
 		this.aimX=30000;
 		this.aimY=30000;
+		
+		this.nextStep=false;
+		this.nextX=30000;
+		this.nextY=30000;
 	}	
 	
 	public void update(int id ,int x, int y,int state,int value) {//change to update
@@ -176,7 +197,7 @@ class Buster {//My busters
 		this.answer="";
 		
 		if(state==3) {
-			Player.ghosts[value].setBlustersBlusting(Player.ghosts[value].getBlustersBlusting());
+			Player.ghosts[value].setBlustersBlusting(Player.ghosts[value].getBlustersBlusting()+1);
 		}
 		
 		if((aimX-x)*(aimX-x)+(aimY-y)*(aimY-y)<1000*1000 ){//1760*1760
@@ -208,7 +229,7 @@ class Buster {//My busters
 				}
 			}			
 		//}
-
+			
 		return answer;
 	}
 
@@ -283,7 +304,7 @@ class Buster {//My busters
 		for (int i = 0; i < Player.ghostCount; i++) {
 			if(Player.ghosts[i].getVisible() && !Player.ghosts[i].getToEarly()){
 				
-				if(Player.ghosts[i].getBusted()){//autant de busters dans chaque équipe
+				if(Player.ghosts[i].getBusted() && (float)((float)Player.ghosts[i].getState()/(float)((float)Player.ghosts[i].getValue()/2))<10){//autant de busters dans chaque équipe && ghost a assez peu de vie
 					for (int u = 0; u < Player.bustersPerPlayer; u++) {
 						if(Player.opponentBusters[u].getVisible() ){//visible and carry a ghost
 							if(Player.opponentBusters[u].getValue()==value){
@@ -315,7 +336,23 @@ class Buster {//My busters
 						}
 					}
 				}
-			
+				
+				for (int j = 0; j < Player.bustersPerPlayer; j++) {//prioriser le cas ou un allier bust un ghost proche qui a plus de 2 d'endurance
+					if(Player.busters[j].getState()==3 && Player.ghosts[Player.busters[j].getvalue()].getState()<3){
+						int GX=Player.ghosts[i].getX();
+						int GY=Player.ghosts[i].getY();
+						int BX=this.x;
+						int BY=this.y;
+						if((GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)<1760*1760){// && (GX-BX)*(GX-BX)+(GY-BY)*(GY-BY)>900
+							answer="BUST "+Player.ghosts[i].getID();
+							Player.ghosts[i].setRelevant(false);
+							System.err.println("bust");
+							nextStep=false;
+							return true;
+						}
+					}
+				}
+				
 				int GX=Player.ghosts[i].getX();
 				int GY=Player.ghosts[i].getY();
 				int BX=this.x;
@@ -324,10 +361,16 @@ class Buster {//My busters
 					answer="BUST "+Player.ghosts[i].getID();
 					Player.ghosts[i].setRelevant(false);
 					System.err.println("bust");
+					nextStep=false;
 					return true;
 				}
 				
 			}	
+		}
+		if(nextStep){
+			answer="MOVE "+nextX+" "+nextY;
+			return true;
+			nextStep=false;
 		}
 		return false;
 	}
@@ -420,6 +463,14 @@ class Buster {//My busters
 					int BX=this.x;
 					int BY=this.y;
 					if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<1760*1760){
+						nextStep=true;
+						if(Player.opponentBusters[i].getState()==3 &&Player.ghosts[Player.opponentBusters[i].getValue()].getVisible()){
+							nextX=Player.ghosts[Player.opponentBusters[i].getValue()].getX();
+							nextY=Player.ghosts[Player.opponentBusters[i].getValue()].getY();
+						}else {
+							nextX=Player.opponentBusters[i].getX();
+							nextY=Player.opponentBusters[i].getY();
+						}
 						answer="STUN "+Player.opponentBusters[i].getId();
 						stunTurn=Player.nbturn;
 						Player.opponentBusters[i].setStunedTurn(Player.nbturn);
@@ -511,7 +562,7 @@ class Buster {//My busters
 		
 		if((id%3==2||id%3==3) && Player.bustersPerPlayer>2){
 			System.err.println(id+" go guard");
-			answer="MOVE "+(1500+13000*((Player.myTeamId+1)%2))+" "+(1500+6000*((Player.myTeamId+1)%2));
+			answer="MOVE "+(1550+12900*((Player.myTeamId+1)%2))+" "+(1550+5900*((Player.myTeamId+1)%2));
 		}
 	}
 	
@@ -548,6 +599,10 @@ class Buster {//My busters
 	
 	public int getAimGhost(){
 		return aimGhost;
+	}
+	
+	public boolean getAim(){
+		return aim;
 	}
 	
 }
