@@ -10,18 +10,20 @@ class Player {
 	/*
 	 * TODO
 	 * 
-	 * le mot d'ordre : être plus agressif et arrêter de se faire voler ses ghost
+	 * a partir de tour 200 jouer 2 par 2
+	 * 
 	 * ===idées d'amélioration===
+	 * 
+	 * /!\/!\/!\/!\/!\/!\pb quand y a autant de buster de chaqe équipe sur le même ghost**mal détecté
+	 * 
+	 * améliorer dodge avec la posssibilité de stun et vérifier si on peut s'enfuir et éventuellement ne pas rentrer en fin de partie=>priorité now
 	 * 
 	 * vérifier si déjà buster avant de le faire
 	 * 
-	 * buster un bustur qui prend un ghost
 	 * 
 	 * stun un opponentbuster qui bust un ghost s'ils a moins de 10 de vie  en cas de duel =>priorité 3//corrigé
 	 * 
 	 * assomer un buster qui est sur un ghost pour le prendre à sa place //fait non vérifié
-	 * 
-	 * team work eventualy
 	 * 
 	 * checker si ca vaut le coup de se déplacer pour aider un buster
 	 * 
@@ -241,16 +243,17 @@ class Buster {//My busters
 	private boolean dodge(){
 		if(state == 1){
 			if((x-Player.myTeamId*16000)*(x-Player.myTeamId*16000)+(y-Player.myTeamId*9000)*(y-Player.myTeamId*9000)<4960*4960 || Player.nbturn>140){
+				int OX;
+				int OY;
+				int BX=this.x;
+				int BY=this.y;
+				boolean dodge=false;
 				for (int i = 0; i < Player.bustersPerPlayer; i++) {
-					if(Player.opponentBusters[i].getVisible() ){//visible and carry a ghost
-							int OX=Player.opponentBusters[i].getX();
-							int OY=Player.opponentBusters[i].getY();
-							int BX=this.x;
-							int BY=this.y;
+					if(Player.opponentBusters[i].getVisible() && (Player.opponentBusters[i].getState()!=2 || (Player.opponentBusters[i].getState()!=2 && Player.opponentBusters[i].getValue()>2))){//visible and carry a ghost		
 							if(((OX-BX)*(OX-BX)+(OY-BY)*(OY-BY))<2200*2200){
-								answer="MOVE "+(2*BX-OX-800)+" "+(2*BY-OY-800);
-								System.err.println("dodge");
-								return true;
+								OX+=Player.opponentBusters[i].getX();
+								OY+=Player.opponentBusters[i].getY();
+								dodge=true;
 							}
 						}
 					}					
@@ -339,7 +342,9 @@ class Buster {//My busters
 								boolean firstStun=true;//check if another bluster hasn't stuned
 									for (int a = 0; a < id-(Player.myTeamId*Player.bustersPerPlayer); a++) {
 										if(Player.busters[a].getvalue()==value){//TODO ca ne marche pas
-											firstStun=false;
+											if(Player.busters[a].getStunTurn()==Player.nbturn){
+												firstStun=false;
+											}
 										}
 									}
 								
@@ -644,7 +649,11 @@ class Buster {//My busters
 	}
 //———————————————————
 //——getters setters——
-//———————————————————		
+//———————————————————
+	public int getStunTurn(){
+		return stunTurn;
+	}
+	
 	public void setAim(boolean set) {
 		aim=set;
 	}
