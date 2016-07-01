@@ -12,6 +12,8 @@ class Player {
 	 * 
 	 * a partir de tour 200 jouer 2 par 2
 	 * 
+	 * ralentir avant de délivrer//non! (désactivé)
+	 * 
 	 * ===idées d'amélioration===
 	 * 
 	 * /!\/!\/!\/!\/!\/!\pb quand y a autant de buster de chaqe équipe sur le même ghost**mal détecté
@@ -46,6 +48,8 @@ class Player {
 	static int bustersPerPlayer;
 	static int ghostCount;
 	static int myTeamId;
+	
+	static InfluenceArea influenceAreas[];
 	
 	static int boardTravelEven=0;//travel the board if no ghost is visible 
 	static int boardTravelOdd=0;
@@ -148,6 +152,21 @@ class Player {
     				ghosts[i].setToEarly(true);
     			}
     		}
+            
+   //zone d'influence TODO
+            influenceAreas=new InfluenceArea[bustersPerPlayer];
+            //mécannisme pour créer plusieurs zones d'influence
+            for (int i = 0; i < bustersPerPlayer; i++) {
+				influenceAreas[i]=new InfluenceArea();
+			}
+            
+
+            
+            
+            
+            
+            
+            
             //long start = System.nanoTime();
             for (int i = 0; i < bustersPerPlayer; i++) {
                   
@@ -243,8 +262,8 @@ class Buster {//My busters
 	private boolean dodge(){
 		if(state == 1){
 			if((x-Player.myTeamId*16000)*(x-Player.myTeamId*16000)+(y-Player.myTeamId*9000)*(y-Player.myTeamId*9000)<4960*4960 || Player.nbturn>140){
-				int OX;
-				int OY;
+				int OX=0;
+				int OY=0;
 				int BX=this.x;
 				int BY=this.y;
 				boolean dodge=false;
@@ -256,7 +275,12 @@ class Buster {//My busters
 								dodge=true;
 							}
 						}
-					}					
+					}
+					if (dodge) {
+						answer="MOVE "+(2*BX-OX-800)+" "+(2*BY-OY-800);
+						System.err.println("dodge");
+						return true;
+					}
 				}
 		
 			}
@@ -286,7 +310,16 @@ class Buster {//My busters
 					}
 				}			
 			}
-			if(Player.myTeamId==0){
+			float distance=1;
+			if( (x-Player.myTeamId*16000)*(x-Player.myTeamId*16000)+(y-Player.myTeamId*9000)*(y-Player.myTeamId*9000)<4400*4400 && false){
+				distance = (float) ((float)400/Math.sqrt(((float)(x-Player.myTeamId*16000)*(float)(x-Player.myTeamId*16000)+(float)(y-Player.myTeamId*9000)*(float)(y-Player.myTeamId*9000)) ));
+			}
+			System.err.println(distance);
+			if((x-Player.myTeamId*16000)*(x-Player.myTeamId*16000)+(y-Player.myTeamId*9000)*(y-Player.myTeamId*9000)>1600*1600 ){
+				answer="MOVE "+((int)(x+distance*(Player.myTeamId*16000-x))+" "+((int)(y+distance*(Player.myTeamId*9000-y))));
+			}else answer="RELEASE";
+			
+			/*if(Player.myTeamId==0){
 				if(x*x+y*y>1600*1600){
 					answer="MOVE 0 0";
 				}else answer="RELEASE";
@@ -295,7 +328,7 @@ class Buster {//My busters
 				if((x-16000)*(x-16000)+(y-9000)*(y-9000)>1600*1600){
 					answer="MOVE 16000 9000";
 				}else answer="RELEASE";
-			}
+			}*/
 			System.err.println("unload");
 			return true;
 		} 
@@ -361,6 +394,7 @@ class Buster {//My busters
 											System.err.println("stun");
 											return true;
 											}else{
+												stunTurn=Player.nbturn;
 												answer="MOVE "+Player.ghosts[i].getX()+" "+Player.ghosts[i].getY();
 												System.err.println("move to stun");
 												return true;													
@@ -650,6 +684,14 @@ class Buster {//My busters
 //———————————————————
 //——getters setters——
 //———————————————————
+	public int getX() {
+		return x;
+	}
+	
+	public int getY() {
+		return y;
+	}
+	
 	public int getStunTurn(){
 		return stunTurn;
 	}
@@ -1041,4 +1083,121 @@ class WorldArea {//My busters
 	}
 	
 }
+
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————new class———————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+
+class InfluenceArea{
+	private boolean ghostsIn[];
+	private boolean bustersIn[];
+	private boolean opponentBustersIn[];
+	
+	public InfluenceArea(int opBusterIndex) {
+		ghostsIn=new boolean[Player.ghostCount];
+		bustersIn=new boolean[Player.bustersPerPlayer];
+		opponentBustersIn=new boolean[Player.bustersPerPlayer];
+		
+		for (int i = 0; i < Player.ghostCount; i++) {
+			ghostsIn[i]=false;
+		}
+		for (int i = 0; i < Player.bustersPerPlayer; i++) {
+			bustersIn[i]=false;
+			opponentBustersIn[i]=false;
+		}
+		
+		opponentBustersIn[opBusterIndex]=true;
+
+		setArea();
+	}
+
+	private void setArea() {
+		boolean everybodyIn=false;
+		while (!everybodyIn) {//on rajoute les buster (alliés et adverses)
+			everybodyIn=true;
+			for (int i = 0; i < opponentBustersIn.length; i++) {//pour chaque opponent de la zone d'influence
+				if(opponentBustersIn[i]==true){
+					for (int u = 0; u < bustersIn.length; u++) {//est ce qu'un allié 
+						if (bustersIn[i]==false) {					//qui n'est pas dans la zone le vois
+							if(iSeeYou(Player.busters[i], Player.opponentBusters[i])){
+								bustersIn[i]=true;						//alors on le rajoute a la zone d'influence
+								everybodyIn=false;
+							}
+						}
+						if (opponentBustersIn[i]==true){			//qui est dans la zone voit un opponent  
+							for (int a = 0; a < opponentBustersIn.length; a++) {
+								if(iSeeYou(Player.busters[a], Player.opponentBusters[a])){
+									opponentBustersIn[i]=true;			//alors on rajoute l'opponent à la zone d'influence
+									everybodyIn=false;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		for (int i = 0; i < bustersIn.length; i++) {//on rajoute les ghosts
+			if (bustersIn[i]) {
+				for (int u = 0; u < ghostsIn.length; u++) {
+					if (iSeeYou(Player.busters[i], Player.ghosts[i])) {
+						ghostsIn[i]=true;
+					}	
+				}
+				
+			}
+		}
+		
+	}
+		
+	private boolean iSeeYou(Buster me,Ghost him){
+		if(  (me.getX()-him.getX())*(me.getX()-him.getX())+(me.getY()-him.getY())*(me.getY()-him.getY())<2200*2200 && him.getVisible()){
+			return true;
+		}return false;
+	}
+	
+	private boolean iSeeYou(Buster me,OpponentBuster him){
+		if(  (me.getX()-him.getX())*(me.getX()-him.getX())+(me.getY()-him.getY())*(me.getY()-him.getY())<2200*2200 && him.getVisible()){
+			return true;
+		}return false;
+	}
+	
+}
+
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————new class———————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+
+class mummerBuster{
+	private int x;
+	private int y;
+	private int turnBeforeCanMove;
+	private int turnBeforeCanStun;
+	
+	
+
+
+	
+}
+
+
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————new class———————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+//————————————————————————————————————————————————————————————————————————————
+class mummerGhost{
+	private int x;
+	private int y;	
+	private int stamina;
+	
+	
+}
+
+
+
 
